@@ -16,7 +16,7 @@ including median filtering and edge detection, and finally convert the image to 
 - Starts up.
 - Can interpret a bitmap.
 - Can detect noise.
-- Can filter irregularities due too noise using median filtering.
+- Can filter irregularities due to noise using median filtering.
 - Can determine edges of page from image.
 - Can recognize text.
 - Can generate a pdf of page image.
