@@ -1,15 +1,43 @@
 `timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 05/06/2024 07:17:05 PM
+// Design Name: 
+// Module Name: median_filter_tb
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
 
 module median_filter_tb;
 
+    parameter WINDOW_SIZE = 3;
+    parameter DATA_WIDTH = 8;
+
     reg clk;
     reg rst;
-    reg [7:0] new_pixel; // 8-bit pixel values
-    wire [7:0] median_out;
+    reg rdy;
+    reg [DATA_WIDTH-1:0] new_pixel; // 8-bit pixel values GRAYSCALE
+//    pixel_t new_pixel; // RGB
+    wire [DATA_WIDTH-1:0] median_out; // GRAYSCALE
+//    pixel_t median_out; // RGB
     wire ready;
-    wire rdy;
+    
+    // Clock period
+    parameter CLK_PERIOD = 5;
 
-    median_filter #( .WINDOW_SIZE(3), .DATA_WIDTH(8) ) dut (
+    median_filter #( .WINDOW_SIZE(WINDOW_SIZE), .DATA_WIDTH(DATA_WIDTH) ) uut (
         .clk(clk),
         .rst(rst),
         .new_pixel(new_pixel),
@@ -17,84 +45,105 @@ module median_filter_tb;
         .ready(ready),
         .rdy(rdy)
     );
-    
-    initial begin
-        clk = 1'b0;
-        forever #5 clk = ~clk;
-    end
-
-    // always @(posedge clk) begin
-    //     #5; // Simulate some clock delay
-    //     clk = ~clk;
-    // end
 
     initial begin
         $display("Test bench started.");
-
-        // rst = 1'b1;
-        // #10; // Hold reset for 10ns
-
-        // rst = 1'b0;
-
+        
+        // Initialize Inputs
+        clk = 0;
         rst = 1;
-        #10 rst = 0;
+        new_pixel = 0;
 
-        // Apply various test cases here
-        // new_pixel = 8'd50; // Apply a middle value
-        // #20; // Wait for processing
-
-        // new_pixel = 8'd100; // Apply a high value
-        // #20;
-
-        // new_pixel = 8'd25; // Apply a low value
-        // #20;
-
-        // new_pixel = 8'd70; // Apply a value within window range
-        // #20;
+        #100;
+        rst = 0;
 
         // Apply test inputs
         
-        new_pixel = 8'hFF; // Test pixel values
-        @(posedge ready);
-        new_pixel = 8'h00;
-        @(posedge ready);
-        new_pixel = 8'h80;
-        @(posedge ready);
-        new_pixel = 8'h7F;
-        @(posedge ready);
-        new_pixel = 8'h01;
-        @(posedge ready);
-        new_pixel = 8'hFE;
-        @(posedge ready);
-        new_pixel = 8'h81;
-        @(posedge ready);
-        new_pixel = 8'h7E;
-        @(posedge ready);
-        new_pixel = 8'h02;
-        @(posedge ready);
+        for (int i=0; i<10; i=i+1) begin
+            @(posedge ready);
+            new_pixel = $random;
+            rdy = 0;
+        end
+        
+        // GRAYSCALE TEST
+//        new_pixel = 8'hFF; // Test pixel values
+//        @(posedge ready);
+//        new_pixel = 8'h00;
+//        @(posedge ready);
+//        new_pixel = 8'h80;
+//        @(posedge ready);
+//        new_pixel = 8'h7F;
+//        @(posedge ready);
+//        new_pixel = 8'h01;
+//        @(posedge ready);
+//        new_pixel = 8'hFE;
+//        @(posedge ready);
+//        new_pixel = 8'h81;
+//        @(posedge ready);
+//        new_pixel = 8'h7E;
+//        @(posedge ready);
+//        new_pixel = 8'h02;
+//        @(posedge ready);
+
+        // RGB TEST
+//        new_pixel.red = 8'hFF; // Test pixel values
+//        new_pixel.green = 8'hFF;
+//        new_pixel.blue = 8'hFF;
+//        @(posedge ready);
+//        new_pixel.red = 8'h00;
+//        new_pixel.green = 8'h00;
+//        new_pixel.blue = 8'h00;
+//        @(posedge ready);
+//        new_pixel.red = 8'h80;
+//        new_pixel.green = 8'h80;
+//        new_pixel.blue = 8'h80;
+//        @(posedge ready);
+//        new_pixel.red = 8'h7F;
+//        new_pixel.green = 8'h7F;
+//        new_pixel.blue = 8'h7F;
+//        @(posedge ready);
+//        new_pixel.red = 8'h01;
+//        new_pixel.green = 8'h01;
+//        new_pixel.blue = 8'h01;
+//        @(posedge ready);
+//        new_pixel.red = 8'hFE;
+//        new_pixel.green = 8'hFE;
+//        new_pixel.blue = 8'hFE;
+//        @(posedge ready);
+//        new_pixel.red = 8'h81;
+//        new_pixel.green = 8'h81;
+//        new_pixel.blue = 8'h81;
+//        @(posedge ready);
+//        new_pixel.red = 8'h7E;
+//        new_pixel.green = 8'h7E;
+//        new_pixel.blue = 8'h7E;
+//        @(posedge ready);
+//        new_pixel.red = 8'h02;
+//        new_pixel.green = 8'h02;
+//        new_pixel.blue = 8'h02;
+//        @(posedge ready);
 
         // Add more test cases as needed
-
-        #10 $finish; 
-    end
-
-    // Monitor output signals (optional)
-    always @(posedge ready) begin
-        $display("Median Output: %d", median_out);
-        // if (ready) begin
-        //     // Print or store the median_out value here
-            
-        // end
+        
+        // End simulation
+        $finish; 
     end
     
-    // initial begin
-    //     wait(ready);
-    //     while (1) begin
-    //         #10;
-    //         if (ready) begin
-    //             $display("Median output: %h", median_out);
-    //         end
-    //     end
-    // end
+    always #CLK_PERIOD clk = ~clk;
+
+    // Monitor output signals (optional)
+    always @(posedge clk) begin
+        if (rdy && ready) begin
+            // Print or store the median_out value here
+            // GRAYSCALE
+            #10 $display("Median Output: %d", median_out);
+
+            // RGB
+//            #10
+//            $display("Median Output RED: %h", median_out.red);
+//            $display("Median Output GREEN: %h", median_out.green);
+//            $display("Median Output BLUE: %h", median_out.blue);
+        end
+    end
 
 endmodule
