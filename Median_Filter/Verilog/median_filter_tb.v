@@ -24,26 +24,34 @@ module median_filter_tb;
 
     parameter WINDOW_SIZE = 3;
     parameter DATA_WIDTH = 8;
+    parameter NUM_PIXELS = 100;
+    integer img_width = 10;
+    integer img_height = 10;
+    
 
     reg clk;
     reg rst;
     reg rdy;
-    reg [DATA_WIDTH-1:0] new_pixel; // 8-bit pixel values GRAYSCALE
-//    pixel_t new_pixel; // RGB
-    wire [DATA_WIDTH-1:0] median_out; // GRAYSCALE
-//    pixel_t median_out; // RGB
+    reg more_pixels;
+//    reg [DATA_WIDTH-1:0] new_pixel; // 8-bit pixel values GRAYSCALE
+    pixel_t new_pixel; // RGB
+//    wire [DATA_WIDTH-1:0] median_out; // GRAYSCALE
+    pixel_t median_out; // RGB
     wire ready;
     
     // Clock period
     parameter CLK_PERIOD = 5;
 
-    median_filter #( .WINDOW_SIZE(WINDOW_SIZE), .DATA_WIDTH(DATA_WIDTH) ) uut (
+    median_filter #( .WINDOW_SIZE(WINDOW_SIZE), .DATA_WIDTH(DATA_WIDTH), .NUM_PIXELS(NUM_PIXELS) ) uut (
         .clk(clk),
         .rst(rst),
         .new_pixel(new_pixel),
         .median_out(median_out),
         .ready(ready),
-        .rdy(rdy)
+        .rdy(rdy),
+        .more_pixels(more_pixels),
+        .img_width(img_width),
+        .img_height(img_height)
     );
 
     initial begin
@@ -52,18 +60,24 @@ module median_filter_tb;
         // Initialize Inputs
         clk = 0;
         rst = 1;
-        new_pixel = 0;
+        more_pixels = 1;
+//        new_pixel = 0;
 
-        #100;
+        #10;
         rst = 0;
 
         // Apply test inputs
         
-        for (int i=0; i<10; i=i+1) begin
-            @(posedge ready);
-            new_pixel = $random;
+        for (int i=0; i<img_width*img_height; i=i+1) begin
+            @(posedge clk);
+            new_pixel.red = $random;
+            new_pixel.green = $random;
+            new_pixel.blue = $random;
             rdy = 0;
         end
+        
+        more_pixels = 0;
+        #1000
         
         // GRAYSCALE TEST
 //        new_pixel = 8'hFF; // Test pixel values
@@ -133,16 +147,14 @@ module median_filter_tb;
 
     // Monitor output signals (optional)
     always @(posedge clk) begin
-        if (rdy && ready) begin
+        if (ready) begin
             // Print or store the median_out value here
             // GRAYSCALE
-            #10 $display("Median Output: %d", median_out);
+//            #10 $display("Median Output: %d", median_out);
 
             // RGB
 //            #10
-//            $display("Median Output RED: %h", median_out.red);
-//            $display("Median Output GREEN: %h", median_out.green);
-//            $display("Median Output BLUE: %h", median_out.blue);
+            $display("Median Output: R = %d; G = %d; B = %d", median_out.red, median_out.green, median_out.blue);
         end
     end
 
