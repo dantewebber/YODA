@@ -156,6 +156,10 @@ always @(posedge clk) begin
             edge_mag = x_mag + y_mag;
             // Edge magnitude mapped to output pixel colour range
             pixel_out = (edge_mag/1785.0)*255;
+            // Thresh hold to remove unwanted noise
+            if (pixel_out < 10) begin
+                pixel_out = 0;
+            end
             // Displays for debugging
             $display("x_mag = %D ",x_mag);
             $display("y_mag = %D ",y_mag);
