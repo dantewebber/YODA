@@ -13,7 +13,7 @@
 // 
 // Dependencies: 
 // 
-// Revision: v4.0
+// Revision: v2
 // Revision 0.01 - File Created
 // Additional Comments: Currently only works for odd window sizes (1x1, 3x3, 5x5 etc.)
 // 
@@ -33,6 +33,8 @@ typedef struct packed {
 
 module median_filter #(parameter int WINDOW_SIZE = 3, // Adjust for filter size
                         parameter int DATA_WIDTH = 8,
+                        parameter int img_width = 318,
+                        parameter int img_height = 305,
                         parameter int NUM_PIXELS = 12000000) ( // WINDOW_SIZE represents the size of 1-dimension
                         // of a window of pixels (e.g. if you have a 3x3 pixel window, WINDOW_SIZE = 3)
     input logic clk,
@@ -46,11 +48,11 @@ module median_filter #(parameter int WINDOW_SIZE = 3, // Adjust for filter size
     // RGB Pixels
     input pixel_t new_pixel,
     input logic more_pixels,
-    input integer img_width,
-    input integer img_height,
+    input integer max_windows,
     output pixel_t median_out,
 
-    output logic ready // Optional output to indicate processing complete
+    output logic ready, // Optional output to indicate processing complete
+    output logic finished
 //    output logic rdy
 );
 
@@ -67,18 +69,19 @@ module median_filter #(parameter int WINDOW_SIZE = 3, // Adjust for filter size
     pixel_t window_tmp [WINDOW_SIZE*WINDOW_SIZE-1:0];
 
 
-    integer i, j, x, y , n, full_window_count, pixel_count, 
-        median_count, pixel_out_count, row_count, padding_size;
+    integer i, j, x, y , n, pixel_count, 
+        median_count, pixel_out_count, row_count, padding_size, full_window_count;
 //    logic [DATA_WIDTH-1:0] temp; //Grayscale
     reg [DATA_WIDTH-1:0] temp_red, temp_green, temp_blue; // RGB
 
     pixel_t pixel_arr [0:NUM_PIXELS-1];
     pixel_t median_array [0:NUM_PIXELS-1];
-    pixel_t window_arr [NUM_PIXELS-1:0][WINDOW_SIZE*WINDOW_SIZE-1:0]; // 2D array of windows (windows are flattened into a 1D array)
+    pixel_t window_arr [0:NUM_PIXELS-1][0:WINDOW_SIZE*WINDOW_SIZE-1]; // 2D array of windows (windows are flattened into a 1D array)
     
     logic pixels_ready;
     logic windows_ready;
     logic median_ready;
+    logic start_windows;
 
     //////////////////////////////////////////////////////////////////////////////////
     /* READ IN PIXELS */
@@ -91,15 +94,18 @@ module median_filter #(parameter int WINDOW_SIZE = 3, // Adjust for filter size
 //            median_out.green <= 0;
 //            median_out.blue <= 0;
             pixel_count <= 0;
-            row_count <= 3;
+            start_windows <= 1'b0;
+            row_count <= WINDOW_SIZE;
             padding_size <= WINDOW_SIZE/2;
             full_window_count <= 0;
+            
         end else begin
             if (more_pixels) begin
+                
                 pixel_arr[pixel_count] <= new_pixel;
                 pixel_count = pixel_count + 1;
-                $display("Received pixel, pixel count = %d", pixel_count);
-                $display("R = %d; G = %d; B = %d", new_pixel.red, new_pixel.green, new_pixel.blue);
+                // $display("Received pixel, pixel count = %d", pixel_count);
+                // $display("R = %d; G = %d; B = %d", new_pixel.red, new_pixel.green, new_pixel.blue);
             end
         end     
     end
@@ -111,18 +117,23 @@ module median_filter #(parameter int WINDOW_SIZE = 3, // Adjust for filter size
     
     always_ff @(posedge clk) begin
         // Take the pixel array and populate windows
-        if (pixel_count > row_count*img_width) begin
+        if (((pixel_count > row_count*img_width) && (!start_windows)) || (pixel_count == NUM_PIXELS)) begin
+            start_windows <= 1'b1;
+        end
+        if ((start_windows) && ((row_count-1) < (img_height))) begin
             // These "for" loops assume that the img_width is the img_width including padding
             for (n = padding_size; n < (img_width-padding_size); n = n+1) begin
                 for (x = 0; x < (WINDOW_SIZE); x = x+1) begin // Change starting and stopping val based on the padding size of the image
                     for (y = 0; y < (WINDOW_SIZE); y = y+1) begin
-                        window_arr[n-padding_size][((x)*WINDOW_SIZE) + (y)] = pixel_arr[(y+(n-padding_size)) + x*img_width];
+                        window_arr[full_window_count][(x*WINDOW_SIZE) + y] = pixel_arr[(y+(n-padding_size)) + x*img_width + img_width*(row_count-WINDOW_SIZE)];
                     end
                 end
-                $display("Window count = %d", full_window_count);
+                // $display("Window count = %d", full_window_count);
                 full_window_count = full_window_count + 1;
             end
-            row_count <= row_count + 1;
+            // $display("row_count = %d", row_count);
+            row_count = row_count + 1;
+            start_windows = 1'b0;
         end
     end
 
@@ -142,6 +153,7 @@ module median_filter #(parameter int WINDOW_SIZE = 3, // Adjust for filter size
             ready <= 1'b0;
             median_count <= 0;
             pixel_out_count <= 0;
+            finished <= 1'b0;
             
 //            rdy <= 1'b0;
             for (i = 0; i < WINDOW_SIZE*WINDOW_SIZE; i = i + 1) begin
@@ -154,7 +166,7 @@ module median_filter #(parameter int WINDOW_SIZE = 3, // Adjust for filter size
                 window_tmp[i].green <= 0;
                 window_tmp[i].blue <= 0;
             end
-        end else if ((pixel_count > WINDOW_SIZE*WINDOW_SIZE) && (full_window_count > 0) && (median_count < ((pixel_count-2)))) begin
+        end else if ((pixel_count > WINDOW_SIZE*WINDOW_SIZE) && (full_window_count > 0) && (median_count < (full_window_count))) begin
             // Shift window elements
             // for (i = WINDOW_SIZE*WINDOW_SIZE-1; i > 0; i = i - 1) begin
             //     window[i] <= window[i-1];
@@ -210,14 +222,14 @@ module median_filter #(parameter int WINDOW_SIZE = 3, // Adjust for filter size
             end 
 
             median_array[median_count] <= window_tmp[WINDOW_SIZE*WINDOW_SIZE/2]; // Assuming middle element is median
-            $display("Median count = %d", median_count);
+            // $display("Median count = %d", median_count);
             median_count <= median_count + 1;
 
-            $display("Window: R1 = %d; R2 = %d; R3 = %d; G1 = %d; G2 = %d; G3 = %d; B1 = %d; B2 = %d; B3 = %d", 
-                window_tmp[0].red, window_tmp[1].red, window_tmp[2].red, window_tmp[0].green, window_tmp[1].green, window_tmp[2].green, window_tmp[0].blue, window_tmp[1].blue, window_tmp[2].blue);
+            // $display("Window: R1 = %d; R2 = %d; R3 = %d; G1 = %d; G2 = %d; G3 = %d; B1 = %d; B2 = %d; B3 = %d", 
+            //     window_tmp[0].red, window_tmp[1].red, window_tmp[2].red, window_tmp[0].green, window_tmp[1].green, window_tmp[2].green, window_tmp[0].blue, window_tmp[1].blue, window_tmp[2].blue);
             
-            $display("Median pixel: R = %d; G = %d; B = %d", window_tmp[WINDOW_SIZE*WINDOW_SIZE/2].red, window_tmp[WINDOW_SIZE*WINDOW_SIZE/2].green, window_tmp[WINDOW_SIZE*WINDOW_SIZE/2].blue);
-            full_window_count <= full_window_count - 1;
+            // $display("Median pixel: R = %d; G = %d; B = %d", window_tmp[WINDOW_SIZE*WINDOW_SIZE/2].red, window_tmp[WINDOW_SIZE*WINDOW_SIZE/2].green, window_tmp[WINDOW_SIZE*WINDOW_SIZE/2].blue);
+            // full_window_count <= full_window_count - 1;
         end     
 
     end
@@ -232,6 +244,10 @@ module median_filter #(parameter int WINDOW_SIZE = 3, // Adjust for filter size
             ready <= 1'b1;
             median_out <= median_array[pixel_out_count];
             pixel_out_count <= pixel_out_count + 1;
+        end else if (pixel_out_count == max_windows) begin
+            finished <= 1'b1;
+        end else begin
+            ready <= 1'b0;
         end
     
     end
